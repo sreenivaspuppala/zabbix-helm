@@ -1,0 +1,67 @@
+{{- if .Values.zabbixserver.enabled }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ template "zabbix.fullname" . }}-zabbix-server
+  labels:
+    app: {{ template "zabbix.fullname" . }}-zabbix-server
+    app.kubernetes.io/name: zabbix-server
+    helm.sh/chart: {{ include "zabbix.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}-zabbix-server
+    app.kubernetes.io/managed-by: {{ .Release.Service }}-zabbix-server
+spec:
+  replicas: {{ .Values.zabbixserver.replicaCount }}
+  serviceName: {{ template "zabbix.fullname" . }}
+  selector:
+    matchLabels:
+      app: {{ template "zabbix.fullname" . }}-zabbix-server
+  template:
+    metadata:
+      labels:
+        app: {{ template "zabbix.fullname" . }}-zabbix-server
+        app.kubernetes.io/name: zabbix-server
+        helm.sh/chart: {{ include "zabbix.chart" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}-zabbix-server
+        app.kubernetes.io/managed-by: {{ .Release.Service }}-zabbix-server
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: zabbix-server
+          resources:
+{{- toYaml .Values.zabbixserver.resources | nindent 12 }}
+          image: {{ .Values.zabbixserver.image.repository }}:{{ .Values.zabbixserver.image.tag }}
+          ports:
+            - containerPort: 10051
+              name: zabbix-server
+              hostPort: 10051
+              {{- if ne "0.0.0.0" .Values.zabbixserver.hostIP }}
+              hostIP: {{ .Values.zabbixserver.hostIP }}
+              {{- end}}
+          env:
+            - name: DB_SERVER_HOST
+              value: {{ .Values.zabbixweb.DB_SERVER_HOST | quote }}
+            - name: DB_SERVER_PORT
+              value: {{ .Values.zabbixweb.DB_SERVER_PORT | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.db_access.POSTGRES_USER | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.db_access.POSTGRES_PASSWORD | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.db_access.POSTGRES_DB | quote }}
+      imagePullSecrets:
+      {{- range .Values.zabbixserver.image.pullSecrets }}
+        - name: {{ . | quote }}
+      {{- end }}
+{{- end }}
